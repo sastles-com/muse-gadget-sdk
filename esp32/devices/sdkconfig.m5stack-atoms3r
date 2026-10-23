@@ -1,0 +1,52 @@
+# Copyright (c) Meta Platforms, Inc. and affiliates.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# M5Stack AtomS3R: ESP32-S3-PICO-1-N8R8 (8 MB flash, 8 MB octal PSRAM),
+# 0.85" 128x128 LCD (GC9107 or ST7735S depending on revision, SPI3),
+# front button on GPIO41, MPU6886/BMI270-class IMU and IR emitter (unused).
+# No microphone and no speaker, so this is a status-screen board: it shows
+# the link state, edge bars, the animation and images on the LCD.
+# Load last, after sdkconfig.defaults (see README.md in this directory).
+# Sources: M5GFX (m5stack/M5GFX) src/M5GFX.cpp AtomS3R autodetect block and
+# Light_M5StackAtomS3R; M5Unified (m5stack/M5Unified) src/M5Unified.inl
+# board table. See atoms3r.md in this directory for the full pin map.
+# STATUS: draft — the HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R backend in
+# main/led_status.c and main/Kconfig.projbuild is not written yet, and
+# nothing here has been built or run on hardware.
+CONFIG_IDF_TARGET="esp32s3"
+CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
+
+# Front (screen) button, active low. M5Unified sets GPIO41 as the AtomS3R
+# button input. BOOT (GPIO0) is the internal I2C clock on this board, so
+# it cannot be the setup button.
+CONFIG_HOMEHUB_BUTTON_GPIO=41
+
+# Status screen on the 128x128 LCD (backend to be added in main/).
+CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R=y
+CONFIG_HOMEHUB_BLE_NAME_SUFFIX="-Disp"
+
+# 8 MB flash (in-package on the PICO-1). Flash mode left at the default:
+# TODO verify DIO vs QIO against a factory firmware dump before building.
+CONFIG_ESPTOOLPY_FLASHSIZE_8MB=y
+CONFIG_ESPTOOLPY_FLASHSIZE="8MB"
+
+# Octal PSRAM holds the TLS buffers and keeps the home-network tunnel on.
+CONFIG_SPIRAM=y
+CONFIG_SPIRAM_MODE_OCT=y
+CONFIG_SPIRAM_MODE_QUAD=n
+CONFIG_SPIRAM_SPEED_80M=y
+
+# The BLE controller already takes ~70 KB of internal RAM on the S3; keep the
+# NimBLE host's allocations in PSRAM so pairing has room.
+CONFIG_BT_NIMBLE_MEM_ALLOC_MODE_EXTERNAL=y
