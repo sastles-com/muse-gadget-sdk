@@ -8,14 +8,16 @@ AtomS3R を Muse ガジェット化できるようにすることを目的とす
 
 ## ステータス
 
-**下調べと雛形の段階。まだビルドも実機動作もしていない。**
+**実装完了・ビルド通過。実機動作はまだ。**
 
 - [x] 上流リポジトリのボード追加手順（`esp32/devices/AGENTS.md`）を確認
 - [x] AtomS3R のピンマップ・パネル仕様をベンダ実装（M5GFX / M5Unified）から採取
   → [`esp32/devices/atoms3r.md`](esp32/devices/atoms3r.md)
 - [x] ボード定義 overlay の雛形 → [`esp32/devices/sdkconfig.m5stack-atoms3r`](esp32/devices/sdkconfig.m5stack-atoms3r)
-- [ ] `main/led_status.c` / `main/Kconfig.projbuild` に表示バックエンドを実装
-- [ ] ESP-IDF v6.0.1 でビルド通過
+- [x] `main/led_status.c` / `main/Kconfig.projbuild` に表示バックエンドを実装
+  （パネルID自動判別、バックライト I2C 制御、`tools/board.sh m5stack-atoms3r`）
+- [x] ESP-IDF v6.0.1 でビルド通過（`muse-gadget.bin` 0x1a1000、
+  最小アプリパーティション比 19% 空き）
 - [ ] 実機でペアリング確認（複数台での同時接続・連携も検証予定）
 - [ ] isolation-sphere（AtomS3R を内蔵する自作球体ディスプレイ）への統合可否を評価
 
@@ -31,6 +33,12 @@ AtomS3R を Muse ガジェット化できるようにすることを目的とす
   2リビジョンが存在する（M5GFX はパネルIDで自動判別）。片方決め打ちにしない。
 - **バックライトは GPIO ではない**: I2C（SDA=GPIO45 / SCL=GPIO0）上の
   アドレス 0x30 のチップ経由。詳細は `atoms3r.md`。
+- **GC9107 ドライバの vendoring**: レジストリの `espressif/esp_lcd_gc9107`
+  （1.0.0 / 2.0.0 とも）は ESP-IDF v6.0.1 でビルドできない
+  （`esp_lcd_panel_dev_config_t.rgb_endian` の改名に未追随）ため、2.0.0 を
+  `esp32/components/esp_lcd_gc9107/` に取り込み、IDF 6 向けの最小パッチを
+  当てている。詳細は同ディレクトリの `VENDORED.md`。修正版が公開されたら
+  ディレクトリごと削除してレジストリ版に戻す。
 
 ## GitHub 公開の手順（予定）
 
