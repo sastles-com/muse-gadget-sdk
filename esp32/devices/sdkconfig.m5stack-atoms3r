@@ -22,9 +22,10 @@
 # Light_M5StackAtomS3R; M5Unified (m5stack/M5Unified) src/M5Unified.inl
 # board table. See atoms3r.md in this directory for the full pin map.
 # STATUS: the HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R backend is implemented
-# in main/led_status.c and builds with ESP-IDF v6.0.1
-# (tools/board.sh m5stack-atoms3r build), but it has not been run on
-# hardware yet.
+# in main/led_status.c, builds with ESP-IDF v6.0.1
+# (tools/board.sh m5stack-atoms3r build) and runs on hardware (paired
+# 2026-10-24). The Phase 2 commands below (sensors.read, display.text)
+# are implemented and built but not yet run on hardware.
 CONFIG_IDF_TARGET="esp32s3"
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 

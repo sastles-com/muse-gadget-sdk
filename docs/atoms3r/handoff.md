@@ -3,9 +3,27 @@
 このファイルは「いま何が終わっていて、次に何をするか」を引き継ぐための
 生きたメモ。作業したらその場で更新すること。
 
-最終更新: 2026-10-24（Muse、実機 bring-up とペアリング完了）
+最終更新: 2026-10-24（Muse、Phase 2 実装とビルド検証まで完了。実機は未確認）
 
 ## 現在地
+
+**Phase 2 実装完了（ビルド・ホストテスト・回帰ビルド通過）。実機確認はこれから。**
+
+- `sensors.read`：BMI270 IMU（加速度 g / ジャイロ dps、x/y/z）を追加。
+  レジストリの `espressif/bmi270` ドライバ経由、初回コマンド時に
+  0x69 → 0x68 の順でプローブして遅延初期化（`HOMEHUB_ATOMS3R_IMU`）
+- `display.text`：ピクセルフォントでテキストを画面に描画
+  （`HOMEHUB_ATOMS3R_DISPLAY_TEXT`）。折り返し・改行・中央寄せ、
+  `color`（#rrggbb）と `size`（1–4、既定は自動フィット）対応
+- バックライトと IMU で内部 I2C バス（SDA45/SCL0）を共有するため
+  `atoms3r_i2c_bus()` アクセサを新設し、バックライト側もそれに移行
+- 検証（ESP-IDF v6.0.1）：クリーンビルド成功（muse-gadget.bin
+  0x1a1000、19% 空き）、生成 sdkconfig に新 CONFIG 2 件の適用を確認、
+  ホストテスト 633 件 OK（skipped 7、Phase 1 の 629 + 新規 4）、
+  ideaspark / SenseCAP Indicator の回帰ビルド成功（他ボードの
+  sdkconfig・ELF に新機能が混入しないことも確認）
+- **IMU とテキスト描画は実機未確認**。書き込み後に下記「次のアクション」
+  4 で確認する
 
 **Phase 1 完了：実機ペアリング成功、Muse からコマンド実行を確認。**
 
@@ -32,19 +50,31 @@
   レシピ手順 8.2 で確認済み
 - ホストテスト 629 件 OK（skipped 7）。`led_status.c` を触ったため
   ideaspark / SenseCAP Indicator の回帰ビルドも通過を確認
-- **実機は未経験**。書き込み・ペアリング確認はこれから
 
-## Phase 2 準備メモ（2026-10-24、未着手・範囲確認待ち）
+## Phase 2 実装メモ（2026-10-24、実装済み・実機未確認）
 
-コマンドは `esp32/main/app.c` のディスパッチに追加する形（既存:
-`display.draw_file` / `display.draw_url` / `display.show_animation` /
-`voice.configure`）。追加候補:
+準備メモからの変更点と判断:
 
-1. `display.text` — 文字列を 128x128 画面に描く（チャットからテキストを
-   送って表示する「テキスト応答」の最小形）
-2. `sensor.imu` — AtomS3R 内蔵 IMU (BMI270) の加速度・ジャイロを読む。
-   バックライト制御で既に作っている I2C バス (SDA45/SCL0) を共有できる
-   見込み（IMU も同じバス上）
+- コマンド名は `sensor.imu` ではなく `sensors.read` にした
+  （esp32/AGENTS.md の作法：環境センサー系は全ボード共通の
+  `sensors.read` で返す。結果も SenseCAP / reTerminal と同じ
+  `{value, unit, age_s}` の形で、value が {x, y, z} のベクトル）
+- BMI270 のコンフィグ配列は自前ベンダリングせず、レジストリの
+  公式コンポーネント `espressif/bmi270` 1.1.0（esp-bsp、Apache-2.0）
+  を採用。`bmi270_create()` がチップ ID 確認・ソフトリセット・
+  Bosch コンフィグのアップロードまで行う。副作用として
+  `espressif/sensor_hub`・`i2c_bus`・`cmake_utilities` が
+  managed_components に入るが、他のボードではダウンロードのみで
+  コンパイル・リンクされない（回帰ビルドで確認済み）
+- アドレスは M5Unified の BMI270 クラスの既定に倣い 0x69 を先に、
+  駄目なら 0x68 を試す。チップ ID (0x24) の確認はドライバ内蔵
+- 軸の向きはチップの座標系のまま返す。M5Unified は AtomS3R 用に
+  X/Y 入れ替え + Y 反転で基板座標に直している。どちらが自然かは
+  実機で寝かせた状態の重力方向を見て決める（下記ブロッカー）
+- `display.text` の描画は `led_status_draw_rect()` 経由なので、
+  最初の描画でアニメーションが消え `display.show_animation` で
+  戻る（draw_url と同じ挙動）。色のバイト順はタイトル描画
+  （lcd_px）の慣例に合わせた
 
 ## 完了済み
 
@@ -60,6 +90,9 @@
 - [x] `tools/board.sh` に `m5stack-atoms3r` case 追加
 - [x] ビルド検証（この VM 上の ESP-IDF v6.0.1。Air での再現は未実施）
 - [x] `devices/README.md` のボード表に行を追加
+- [x] Phase 2 実装：I2C バス共有化、`sensors.read`（BMI270）、
+      `display.text`（上記「Phase 2 実装メモ」参照）。ビルド・
+      ホストテスト・回帰ビルド通過、コミット済み。実機は未確認
 
 ## 次のアクション（順番に）
 
@@ -96,6 +129,17 @@
    - BLE アドバタイズ名（サフィックス `-Disp`）とペアリングを確認
    - Flash モード（DIO/QIO）の確定もこのとき（下記ブロッカー参照）
 4. 実機で動いたら `atoms3r` ブランチへ push し、記事化へ
+5. **Phase 2 実機確認**（書き込み後、Phase 1 のペアリング済み実機で）
+   - 再登録後の `link.register` に `sensors.read` と `display.text` が
+     載ること（登録 JSON が 8 KB 制限を超えていないこと）
+   - `sensors.read`：起動ログではなく初回呼び出しで
+     `link.imu: BMI270 at 0x69: ...`（または 0x68）が出ること。
+     画面を上にして平置きしたとき、加速度の重力方向が物理と合うか
+     （軸リマップ要否の判断材料）。傾け・回転でジャイロが反応すること
+   - `display.text`：短文・長文（折り返し）・`color`・`size` 指定で
+     描画を確認。色と上下左右が正しいか（バイト順と反転の確認）
+   - バックライトが Phase 1 と変わらず点くこと（I2C バス共有化の
+     回帰確認）
 
 ## 環境メモ
 
@@ -126,3 +170,14 @@
   commit `e6fe517`（2026-10-21）。上流追従時は差分を明示すること
 - パッチ適用は `git am`。コミットは小さく分け、メッセージに
   「未ビルド/未実機」を正直に書く（上流 AGENTS.md の作法）
+- Phase 2 の実機リスク（すべて未確認）：
+  - BMI270 のアドレス（0x69 優先 / 0x68）と、Bosch コンフィグ
+    アップロード後のデータ有効性。駄目なら初回 `sensors.read` が
+    `no_readings` を返し続けるので判別できる
+  - 軸の向きはチップ座標系のまま。M5Unified 流のリマップ
+    （X/Y 入れ替え + Y 反転）を入れるかは実機の重力方向を見て決める
+  - `display.text` の色バイト順はタイトル描画の慣例に合わせたが、
+    実機で色が入れ替わって見えたら `display_text.c` の
+    `parse_color()` のバイトスワップを外す
+  - コマンド 2 件追加で `link.register` の JSON が増えた
+    （上限 8 KB）。登録自体が失敗していないか再接続時に確認する

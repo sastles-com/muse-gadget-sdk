@@ -16,7 +16,9 @@ limitations under the License.
 
 # M5Stack AtomS3R port notes
 
-Status: **draft, not built, not run on hardware.** This file collects the
+Status: **Phase 1 backend built and running on hardware (paired
+2026-10-24); Phase 2 commands (`sensors.read`, `display.text`)
+implemented and built, not yet run on hardware.** This file collects the
 facts gathered for the port (per `AGENTS.md` in this directory: collect the
 facts first, cite where each came from, don't guess pins). The overlay is
 [`sdkconfig.m5stack-atoms3r`](sdkconfig.m5stack-atoms3r).
@@ -29,7 +31,7 @@ facts first, cite where each came from, don't guess pins). The overlay is
 | USB | Native USB-Serial-JTAG (`usbmodem` / `ttyACM`), Espressif `303a:1001` | ESP32-S3 (same as other S3 boards) |
 | Display | 0.85" 128×128 IPS, SPI3, **two panel revisions** (below) | M5GFX autodetect |
 | Button | Front/screen button on **GPIO41** (input; M5Unified sets it as the button input for AtomS3R) | `M5Unified.inl` |
-| IMU | 6-axis IMU on the internal I2C bus (unused by this port so far) | M5Stack docs |
+| IMU | BMI270 6-axis IMU on the internal I2C bus (Phase 2 `sensors.read`); M5Unified's BMI270 class defaults to I2C address 0x69 and falls back to 0x68 | M5Unified `src/utility/imu/BMI270_Class.hpp`, `src/utility/IMU_Class.inl` |
 | IR | Emitter/receiver around GPIO1/GPIO2 (port table; unused) | `M5Unified.inl` board table |
 | Mic / speaker | **None** (the AtomS3R-CAM kit's Voice Base adds them; the bare unit has neither) | M5Stack docs |
 
