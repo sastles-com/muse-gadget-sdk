@@ -805,9 +805,12 @@ static esp_err_t lcd_panel_init(void) {
         .lcd_param_bits = 8,
         .flags = {.sio_mode = 1},
     };
+    // The AtomS3R panel is wired BGR: with RGB element order, red and blue
+    // swap on the glass (verified on hardware 2026-10-24 with a colour-bar
+    // test image). This applies to both panel revisions created below.
     esp_lcd_panel_dev_config_t panel_cfg = {
         .reset_gpio_num = LCD_PIN_RST,
-        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_BGR,
         .bits_per_pixel = 16,
     };
     esp_lcd_panel_io_handle_t io = NULL;
@@ -824,8 +827,14 @@ static esp_err_t lcd_panel_init(void) {
     // M5GFX gives both revisions a 180 degree offset rotation.
     if (err == ESP_OK) err = esp_lcd_panel_mirror(s_panel, true, true);
     if (err == ESP_OK) {
+        // GC9107: no gap. The glass shows GRAM rows 0..127 once the MADCTL
+        // mirror above is on; the 32-row offset from M5GFX's table is in
+        // rotated display coordinates and double-counts here — with (0, 32)
+        // the image landed 32 rows low with a noise band on top and the
+        // bottom 32 rows cut off (verified on hardware 2026-10-24 with a
+        // colour-band test). The ST7735S gap is unchanged (unverified).
         err = st7735s ? esp_lcd_panel_set_gap(s_panel, 2, 1)
-                      : esp_lcd_panel_set_gap(s_panel, 0, 32);
+                      : esp_lcd_panel_set_gap(s_panel, 0, 0);
     }
     if (err == ESP_OK && st7735s) err = esp_lcd_panel_invert_color(s_panel, true);
     return err;

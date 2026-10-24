@@ -27,6 +27,7 @@
 #include "esp_timer.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/semphr.h"
+#include "freertos/task.h"
 
 // ---- Protocol (host-tested) -------------------------------------------------
 
@@ -164,9 +165,22 @@ cJSON *atoms3r_imu_command(void) {
         }
     }
     float accel[3], gyro[3];
-    esp_err_t err = bmi270_get_acce_data(s_imu, &accel[0], &accel[1], &accel[2]);
-    if (err == ESP_OK) {
-        err = bmi270_get_gyro_data(s_imu, &gyro[0], &gyro[1], &gyro[2]);
+    esp_err_t err = ESP_FAIL;
+    // Right after bmi270_start() the data registers still read all zero
+    // until the first samples land (100 Hz ODR plus sensor start-up), and
+    // an all-zero accelerometer is physically impossible anyway (gravity),
+    // so retry briefly instead of reporting a bogus zero reading on the
+    // first call after boot.
+    for (int attempt = 0; attempt < 6; attempt++) {
+        if (attempt) vTaskDelay(pdMS_TO_TICKS(25));
+        err = bmi270_get_acce_data(s_imu, &accel[0], &accel[1], &accel[2]);
+        if (err == ESP_OK) {
+            err = bmi270_get_gyro_data(s_imu, &gyro[0], &gyro[1], &gyro[2]);
+        }
+        if (err == ESP_OK
+            && (accel[0] != 0.0f || accel[1] != 0.0f || accel[2] != 0.0f)) {
+            break;
+        }
     }
     if (err == ESP_OK) {
         reading.valid = true;
