@@ -178,7 +178,8 @@ cJSON *atoms3r_imu_command(void) {
             err = bmi270_get_gyro_data(s_imu, &gyro[0], &gyro[1], &gyro[2]);
         }
         if (err == ESP_OK
-            && (accel[0] != 0.0f || accel[1] != 0.0f || accel[2] != 0.0f)) {
+            && (accel[0] != 0.0f || accel[1] != 0.0f || accel[2] != 0.0f)
+            && (gyro[0] != 0.0f || gyro[1] != 0.0f || gyro[2] != 0.0f)) {
             break;
         }
     }
