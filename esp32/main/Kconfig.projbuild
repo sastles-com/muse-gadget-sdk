@@ -510,6 +510,17 @@ menu "ESP32 Device SDK"
             tenths of a degree Celsius. The E100x sensor reads warm from board
             heat; -33 (-3.3 C, about -6 F) is a starting point for those boards.
 
+    config HOMEHUB_ATOMS3R_IMU
+        bool "AtomS3R BMI270 IMU (sensors.read)"
+        depends on HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R
+        default y
+        help
+            Read the AtomS3R's onboard BMI270 accelerometer and gyroscope
+            over the internal I2C bus (SDA GPIO45, SCL GPIO0, shared with
+            the backlight controller; address 0x69 or 0x68) and answer
+            sensors.read. The IMU is initialised on the first
+            sensors.read, so a missing one costs nothing at boot.
+
     config HOMEHUB_DISPLAY_COMMANDS
         bool
         default y if HOMEHUB_DISPLAY

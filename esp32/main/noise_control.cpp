@@ -1526,6 +1526,14 @@ static char *build_register_json(void) {
                 "in seconds; a sensor with no recent reading is null.",
                 nullptr, nullptr);
 #endif
+#if CONFIG_HOMEHUB_ATOMS3R_IMU
+    add_command(commands, "sensors.read",
+                "Read the onboard motion sensor: acceleration in g and "
+                "rotation rate in degrees per second, each as x, y and z "
+                "in the sensor's frame. Each reading has its age in "
+                "seconds.",
+                nullptr, nullptr);
+#endif
 
 #if CONFIG_MUSE_WATCHER_CAMERA
     add_command(commands, "camera.capture",
