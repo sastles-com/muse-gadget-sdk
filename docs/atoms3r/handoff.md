@@ -3,11 +3,28 @@
 このファイルは「いま何が終わっていて、次に何をするか」を引き継ぐための
 生きたメモ。作業したらその場で更新すること。
 
-最終更新: 2026-10-24（Muse、実装とビルド検証まで完了）
+最終更新: 2026-10-24（Muse、実機 bring-up とペアリング完了）
 
 ## 現在地
 
-**Phase 1 の実装とビルド検証が完了。次は実機 bring-up。**
+**Phase 1 完了：実機ペアリング成功、Muse からコマンド実行を確認。**
+
+- 実機（MAC ac:27:6e:d1:93:7c、node homelink-d1937c）へ書き込み・起動成功。
+  表示（GC9107 仮定駆動でアニメーション再生）、ボタン GPIO41、BLE、Wi-Fi
+  スキャンすべて動作
+- SDK トークンをシリアルコンソールから保存（`>sdk_token=...` + LF）
+- Muse アプリ（iPhone）でペアリング完了：デバイス一覧に
+  `MuseGadget-Disp-D1937C`（platform esp32）として online 表示
+- `device.health` OK（接続 SSID aterm-05cc60-5p）、`display.draw_file` で
+  128x128 JPEG の描画成功（Phase 1 の受け入れ条件を達成）
+- bring-up の知見：
+  - 工場ファームのフラッシュモードは DIO 8MB 80MHz（ダンプで確認）
+  - esptool v5 は `--flash_mode` 等のアンダースコア形式オプションが必須
+  - パネル ID は 0x004883ff と読め既知 ID に一致しないが、GC9107 仮定で
+    表示は正常（ID 読みのバイト並び切り分けは未完の宿題）
+  - iPhone アプリで SSID 選択直後に「接続中」のまま止まる事象があった。
+    端末側には provision が届いておらず、アプリ再起動で解消した
+  - 自宅 Aterm（Wi-Fi 7 / 11be ON）への接続自体は問題なかった
 
 - ESP-IDF v6.0.1 で `tools/board.sh m5stack-atoms3r build` 成功
   （muse-gadget.bin 0x1a1000、最小アプリパーティション 0x200000 に
