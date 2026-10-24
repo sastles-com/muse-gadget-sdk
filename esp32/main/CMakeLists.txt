@@ -121,6 +121,9 @@ endif()
 if(CONFIG_HOMEHUB_ATOMS3R_DISPLAY_TEXT)
     list(APPEND GADGET_SRCS "display_text.c")
 endif()
+if(CONFIG_HOMEHUB_CORES3_ENCODER8)
+    list(APPEND GADGET_SRCS "cores3_encoder8.c")
+endif()
 
 if(CONFIG_HOMEHUB_VOICE)
     list(APPEND GADGET_SRCS

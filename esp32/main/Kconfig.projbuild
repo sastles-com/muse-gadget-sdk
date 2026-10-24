@@ -531,6 +531,19 @@ menu "ESP32 Device SDK"
             display.text. The text replaces the animation until
             display.show_animation.
 
+    config HOMEHUB_CORES3_ENCODER8
+        bool "CoreS3 Encoder8 unit on Grove Port A (encoders.read)"
+        depends on MUSE_BOARD_M5STACK_CORES3
+        default y
+        help
+            Read an M5Stack Encoder8 unit (U153) plugged into the
+            CoreS3's Grove Port A over I2C (SDA GPIO2, SCL GPIO1, a
+            bus of its own; address 0x41) and answer encoders.read
+            with all eight channels' absolute counts and increments
+            since the last read, the eight button states and the
+            slide switch. The unit is probed on the first
+            encoders.read, so an absent one costs nothing at boot.
+
     config HOMEHUB_DISPLAY_COMMANDS
         bool
         default y if HOMEHUB_DISPLAY
