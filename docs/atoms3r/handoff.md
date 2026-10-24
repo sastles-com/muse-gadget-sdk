@@ -207,3 +207,33 @@
 - 残件：起動直後の初回読みでジャイロだけ 0 になる（加速度は実値）。
   リトライ条件にジャイロも含めた v2.1.1 を用意済み、書き込みと
   起動直後の sensors.read での確認待ち
+
+## CoreS3 + Encoder8：encoders.read 実装（2026-10-24、実機未確認）
+
+- 新コマンド `encoders.read`（パラメータなし）を CoreS3 ビルドに追加。
+  `esp32/main/cores3_encoder8.c/.h` が新規モジュールで、Phase 2 と
+  同じ型（登録は `noise_control.cpp` の `build_register_json()`、
+  処理は `app.c` の `on_ws_command()`、同名必須）
+- ゲート：新 Kconfig `CONFIG_HOMEHUB_CORES3_ENCODER8`
+  （`depends on MUSE_BOARD_M5STACK_CORES3`、`default y`、
+  `devices/sdkconfig.muse-m5stack-cores3` でも明示）
+- 配線：Grove Port A は SDA=GPIO2 / SCL=GPIO1 で内部バス
+  （SDA12/SCL11、BSP が使用）とは別系統。BSP は Port A を初期化
+  しないため、モジュールが専用 I2C マスタバスを遅延生成する
+  （S3 の第 2 I2C コントローラを使用）。初回コマンド時に
+  0x41 を probe し、無応答なら `sensors.read` と同じ
+  `no_readings` エラーを返す（起動・ペアリングには影響なし）
+- レジスタマップ出典：M5Stack 公式 I2C プロトコル文書。
+  絶対カウンタ int32 LE（ch0–3: 0x00–0x0F、ch4–7: 0x10–0x1F）、
+  増分値（読むと自動クリア、ch0–3: 0x20–、ch4–7: 0x30–）、
+  ボタン 0x50–0x57（非ゼロ＝押下）、スライドスイッチ 0x60、
+  FW バージョン 0xFE。結果 JSON は channels[8]（count/increment）、
+  buttons[8]、slide_switch、firmware_version
+- 検証済み：CoreS3 クリーンビルド成功（muse-gadget.bin 0x211000、
+  生成 sdkconfig にオプション反映、ELF に登録文字列を確認）、
+  AtomS3R 回帰ビルド成功、ホストテスト 635 件 OK（新規 2 件：
+  レジスタデコードのハーネス＋配線テスト）
+- 実機未確認：書き込み後の `encoders.read` 実データ（カウンタの
+  符号・ch 対応、ボタンの極性、スライドスイッチの値、増分の
+  自動クリア挙動）。書き込みパッケージは
+  `~/workspace/cores3-flash-v2/`（zip 同梱、未アップロード）
