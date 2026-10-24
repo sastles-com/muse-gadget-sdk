@@ -46,7 +46,13 @@
 #include "driver/spi_master.h"
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_st7789.h"
-#else
+#elif CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R
+#include "driver/i2c_master.h"
+#include "driver/spi_master.h"
+#include "esp_lcd_gc9107.h"
+#include "esp_lcd_panel_io.h"
+#include "esp_lcd_panel_st7789.h"
+#elif CONFIG_HOMEHUB_LED_BACKEND_SENSECAP_ST7701
 #include "driver/i2c_master.h"
 #include "esp_lcd_panel_rgb.h"
 #include "esp_rom_sys.h"
@@ -181,6 +187,29 @@ static const char *TAG = "link.led";
 #define LCD_ANIM_SCALE   2
 #define LCD_DOT_MARGIN   4
 #define LCD_BUF_CAPS     MALLOC_CAP_DMA
+#elif CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R
+// M5Stack AtomS3R: 128x128 panel on SPI3 (3-wire). Two panel revisions,
+// GC9107 and ST7735S, are told apart by panel ID in lcd_panel_init().
+// There is no backlight GPIO: a controller on the internal I2C bus (the
+// IMU's bus) drives it; see atoms3r_backlight_on().
+#define LCD_NAME         "M5Stack AtomS3R"
+#define LCD_HOST         SPI3_HOST
+#define LCD_PIN_SCLK     15
+#define LCD_PIN_MOSI     21
+#define LCD_PIN_CS       14
+#define LCD_PIN_DC       42
+#define LCD_PIN_RST      48
+#define LCD_PCLK_HZ      (40 * 1000 * 1000)
+#define LCD_H_RES        128
+#define LCD_V_RES        128
+#define LCD_BAR_ROWS     8
+#define LCD_ANIM_SCALE   2
+#define LCD_DOT_MARGIN   4
+// Draw buffers are sent by SPI DMA.
+#define LCD_BUF_CAPS     MALLOC_CAP_DMA
+#define LCD_BL_I2C_ADDR  0x30
+#define LCD_PIN_I2C_SDA  45
+#define LCD_PIN_I2C_SCL  0
 #endif
 
 #if CONFIG_HOMEHUB_DISPLAY
@@ -404,7 +433,7 @@ static bool s_dot_drawn = false;
 static bool s_image_mode = false;
 static const uint8_t s_dot_rows[LCD_DOT_CELLS] = {0x6, 0xf, 0xf, 0x6};
 
-#if CONFIG_HOMEHUB_LED_BACKEND_IDEASPARK_ST7789 || CONFIG_HOMEHUB_LED_BACKEND_WAVESHARE_C6_ST7789
+#if CONFIG_HOMEHUB_LED_BACKEND_IDEASPARK_ST7789 || CONFIG_HOMEHUB_LED_BACKEND_WAVESHARE_C6_ST7789 || CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R
 static SemaphoreHandle_t s_draw_done = NULL;
 
 static bool lcd_draw_done(esp_lcd_panel_io_handle_t io,
@@ -426,7 +455,7 @@ static bool lcd_draw(int x0, int y0, int x1, int y1, const uint16_t *buf) {
 static uint16_t lcd_from_be(uint16_t px) {
     return px;
 }
-#else
+#elif CONFIG_HOMEHUB_LED_BACKEND_SENSECAP_ST7701
 // The copy into the frame buffer is done when this returns. Caller holds
 // s_lcd_lock.
 static bool lcd_draw(int x0, int y0, int x1, int y1, const uint16_t *buf) {
@@ -542,6 +571,10 @@ static void led_hw_set_connected(void) {
 // task only.
 static void led_hw_set_title(const char *text) {
     if (!s_panel) return;
+    // A panel too short to fit the title above the animation (the AtomS3R's
+    // 128 rows) has nowhere to put it; the device name is left out there,
+    // the same trade the AIPI Lite UI makes.
+    if (LCD_TITLE_Y < 0) return;
     const int adv = PIXEL_FONT_WIDTH + 1;
     int n = (int)strlen(text);
     int scale = LCD_TITLE_MAX_SCALE;
@@ -660,7 +693,156 @@ static esp_err_t lcd_panel_init(void) {
 static esp_err_t lcd_panel_on(void) {
     return esp_lcd_panel_disp_on_off(s_panel, true);
 }
-#else
+#elif CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R
+// Panel IDs read with RDDID (0x04), laid out the way M5GFX's autodetect
+// checks them: the GC9107 fills the low three bytes, the ST7735S the low
+// two.
+#define ATOMS3R_ID_GC9107      0x079100
+#define ATOMS3R_ID_ST7735S     0x7683
+#define ATOMS3R_ID_ST7735S_ALT 0x897C
+
+// One panel ID read at the given SPI clock, through a throwaway panel IO
+// in single-line (3-wire) mode. Zero when nothing answered.
+static uint32_t atoms3r_read_panel_id(unsigned pclk_hz) {
+    esp_lcd_panel_io_spi_config_t io_cfg = {
+        .cs_gpio_num = LCD_PIN_CS,
+        .dc_gpio_num = LCD_PIN_DC,
+        .spi_mode = 0,
+        .pclk_hz = pclk_hz,
+        .trans_queue_depth = 1,
+        .lcd_cmd_bits = 8,
+        .lcd_param_bits = 8,
+        .flags = {.sio_mode = 1},
+    };
+    esp_lcd_panel_io_handle_t io = NULL;
+    if (esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_cfg, &io) != ESP_OK) {
+        return 0;
+    }
+    // A NOP first, to close whatever command the panel may be sitting in
+    // (M5GFX probes the same way).
+    (void)esp_lcd_panel_io_tx_param(io, 0x00, NULL, 0);
+    uint8_t b[4] = {0};
+    esp_err_t err = esp_lcd_panel_io_rx_param(io, 0x04, b, sizeof(b));
+    esp_lcd_panel_io_del(io);
+    if (err != ESP_OK) return 0;
+    return (uint32_t)b[0] << 24 | (uint32_t)b[1] << 16 | (uint32_t)b[2] << 8 | b[3];
+}
+
+// Reset the panel, then read its ID. Some GC9107 batches only answer at a
+// low clock, so a silent first read is retried at 100 kHz (M5GFX: a
+// healthy ST7735S has answered by then, so the slow retry is for the
+// GC9107).
+static uint32_t atoms3r_probe_panel_id(void) {
+    gpio_config_t rst_cfg = {
+        .pin_bit_mask = 1ULL << LCD_PIN_RST,
+        .mode = GPIO_MODE_OUTPUT,
+    };
+    if (gpio_config(&rst_cfg) != ESP_OK) return 0;
+    gpio_set_level(LCD_PIN_RST, 0);
+    vTaskDelay(pdMS_TO_TICKS(10));
+    gpio_set_level(LCD_PIN_RST, 1);
+    vTaskDelay(pdMS_TO_TICKS(120));
+    uint32_t id = atoms3r_read_panel_id(8 * 1000 * 1000);
+    if (!id) id = atoms3r_read_panel_id(100 * 1000);
+    return id;
+}
+
+// The backlight is not wired to a GPIO: a controller on the internal I2C
+// bus (the IMU's bus) switches it. Init sequence and brightness register
+// from M5GFX's Light_M5StackAtomS3R.
+static esp_err_t atoms3r_backlight_on(void) {
+    i2c_master_bus_config_t bus_cfg = {
+        .i2c_port = -1,
+        .sda_io_num = LCD_PIN_I2C_SDA,
+        .scl_io_num = LCD_PIN_I2C_SCL,
+        .clk_source = I2C_CLK_SRC_DEFAULT,
+        .glitch_ignore_cnt = 7,
+        .flags.enable_internal_pullup = true,
+    };
+    i2c_master_bus_handle_t bus = NULL;
+    esp_err_t err = i2c_new_master_bus(&bus_cfg, &bus);
+    if (err != ESP_OK) return err;
+    i2c_device_config_t dev_cfg = {
+        .dev_addr_length = I2C_ADDR_BIT_LEN_7,
+        .device_address = LCD_BL_I2C_ADDR,
+        .scl_speed_hz = 400000,
+    };
+    i2c_master_dev_handle_t dev = NULL;
+    err = i2c_master_bus_add_device(bus, &dev_cfg, &dev);
+    // Three setup registers, then full brightness in register 0x0E.
+    static const uint8_t init_seq[][2] = {{0x00, 0x40}, {0x08, 0x01}, {0x70, 0x00}, {0x0E, 0xFF}};
+    for (size_t i = 0; err == ESP_OK && i < sizeof(init_seq) / sizeof(init_seq[0]); i++) {
+        err = i2c_master_transmit(dev, init_seq[i], 2, 100);
+        if (i == 0) vTaskDelay(pdMS_TO_TICKS(1));
+    }
+    return err;
+}
+
+static esp_err_t lcd_panel_init(void) {
+    s_draw_done = xSemaphoreCreateBinary();
+    if (!s_draw_done) return ESP_ERR_NO_MEM;
+    spi_bus_config_t bus_cfg = {
+        .sclk_io_num = LCD_PIN_SCLK,
+        .mosi_io_num = LCD_PIN_MOSI,
+        .miso_io_num = -1,
+        .quadwp_io_num = -1,
+        .quadhd_io_num = -1,
+        .max_transfer_sz = LCD_ANIM_BUF_PIXELS * sizeof(uint16_t),
+    };
+    esp_err_t err = spi_bus_initialize(LCD_HOST, &bus_cfg, SPI_DMA_CH_AUTO);
+    if (err != ESP_OK) return err;
+
+    uint32_t id = atoms3r_probe_panel_id();
+    bool st7735s = (id & 0xFFFF) == ATOMS3R_ID_ST7735S ||
+                   (id & 0xFFFF) == ATOMS3R_ID_ST7735S_ALT;
+    if (!st7735s && (id & 0xFFFFFF) != ATOMS3R_ID_GC9107) {
+        ESP_LOGW(TAG, LCD_NAME ": panel ID 0x%08lx not recognised; assuming GC9107",
+                 (unsigned long)id);
+    }
+    ESP_LOGI(TAG, LCD_NAME " panel: %s (ID 0x%08lx)",
+             st7735s ? "ST7735S" : "GC9107", (unsigned long)id);
+
+    esp_lcd_panel_io_spi_config_t io_cfg = {
+        .cs_gpio_num = LCD_PIN_CS,
+        .dc_gpio_num = LCD_PIN_DC,
+        .spi_mode = 0,
+        .pclk_hz = LCD_PCLK_HZ,
+        .trans_queue_depth = 4,
+        .on_color_trans_done = lcd_draw_done,
+        .lcd_cmd_bits = 8,
+        .lcd_param_bits = 8,
+        .flags = {.sio_mode = 1},
+    };
+    esp_lcd_panel_dev_config_t panel_cfg = {
+        .reset_gpio_num = LCD_PIN_RST,
+        .rgb_ele_order = LCD_RGB_ELEMENT_ORDER_RGB,
+        .bits_per_pixel = 16,
+    };
+    esp_lcd_panel_io_handle_t io = NULL;
+    err = esp_lcd_new_panel_io_spi((esp_lcd_spi_bus_handle_t)LCD_HOST, &io_cfg, &io);
+    if (err == ESP_OK) {
+        // v1 shortcut for the ST7735S revision: IDF's ST7789 driver speaks
+        // the same command set for everything this screen uses, so it runs
+        // the ST7735S with the panel's gap and colour inversion applied.
+        err = st7735s ? esp_lcd_new_panel_st7789(io, &panel_cfg, &s_panel)
+                      : esp_lcd_new_panel_gc9107(io, &panel_cfg, &s_panel);
+    }
+    if (err == ESP_OK) err = esp_lcd_panel_reset(s_panel);
+    if (err == ESP_OK) err = esp_lcd_panel_init(s_panel);
+    // M5GFX gives both revisions a 180 degree offset rotation.
+    if (err == ESP_OK) err = esp_lcd_panel_mirror(s_panel, true, true);
+    if (err == ESP_OK) {
+        err = st7735s ? esp_lcd_panel_set_gap(s_panel, 2, 1)
+                      : esp_lcd_panel_set_gap(s_panel, 0, 32);
+    }
+    if (err == ESP_OK && st7735s) err = esp_lcd_panel_invert_color(s_panel, true);
+    return err;
+}
+
+static esp_err_t lcd_panel_on(void) {
+    return esp_lcd_panel_disp_on_off(s_panel, true);
+}
+#elif CONFIG_HOMEHUB_LED_BACKEND_SENSECAP_ST7701
 typedef struct {
     uint8_t cmd, len;
     uint16_t delay_ms;
@@ -857,18 +1039,32 @@ static bool led_hw_init(void) {
         return false;
     }
 
+#if CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R
+    // No backlight GPIO on this board; the I2C controller lights it.
+    err = atoms3r_backlight_on();
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, LCD_NAME " backlight init failed: %s", esp_err_to_name(err));
+        return false;
+    }
+#else
     gpio_config_t bl_cfg = {
         .pin_bit_mask = 1ULL << LCD_PIN_BL,
         .mode = GPIO_MODE_OUTPUT,
     };
     gpio_config(&bl_cfg);
     gpio_set_level(LCD_PIN_BL, 1);
+#endif
 
     // Lower priority than the LED task so status changes are never delayed.
     xTaskCreate(anim_task, "lcd_anim", 2560, NULL, 1, NULL);
 
+#if CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R
+    ESP_LOGI(TAG, "LED status ready: " LCD_NAME " %dx%d display",
+             LCD_H_RES, LCD_V_RES);
+#else
     ESP_LOGI(TAG, "LED status ready: " LCD_NAME " %dx%d display (BL=%d)",
              LCD_H_RES, LCD_V_RES, LCD_PIN_BL);
+#endif
     return true;
 }
 #elif CONFIG_HOMEHUB_LED_BACKEND_MUSE
@@ -1219,10 +1415,10 @@ static bool lcd_draw_image_rect(int x, int y, int w, int h, const void *pixels) 
         s_image_mode = true;
         lcd_clear_rows(0, LCD_V_RES);
     }
-#if CONFIG_HOMEHUB_LED_BACKEND_IDEASPARK_ST7789 || CONFIG_HOMEHUB_LED_BACKEND_WAVESHARE_C6_ST7789
+#if CONFIG_HOMEHUB_LED_BACKEND_IDEASPARK_ST7789 || CONFIG_HOMEHUB_LED_BACKEND_WAVESHARE_C6_ST7789 || CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R
     // Already in the panel's format; copied only to reach DMA memory.
     memcpy(s_anim_buf, pixels, (size_t)w * h * sizeof(uint16_t));
-#else
+#elif CONFIG_HOMEHUB_LED_BACKEND_SENSECAP_ST7701
     const uint8_t *src = pixels;
     for (int i = 0; i < w * h; i++) s_anim_buf[i] = (uint16_t)(src[2 * i] << 8 | src[2 * i + 1]);
 #endif

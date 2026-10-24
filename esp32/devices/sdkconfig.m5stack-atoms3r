@@ -21,9 +21,10 @@
 # Sources: M5GFX (m5stack/M5GFX) src/M5GFX.cpp AtomS3R autodetect block and
 # Light_M5StackAtomS3R; M5Unified (m5stack/M5Unified) src/M5Unified.inl
 # board table. See atoms3r.md in this directory for the full pin map.
-# STATUS: draft — the HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R backend in
-# main/led_status.c and main/Kconfig.projbuild is not written yet, and
-# nothing here has been built or run on hardware.
+# STATUS: the HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R backend is implemented
+# in main/led_status.c and builds with ESP-IDF v6.0.1
+# (tools/board.sh m5stack-atoms3r build), but it has not been run on
+# hardware yet.
 CONFIG_IDF_TARGET="esp32s3"
 CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 
@@ -32,7 +33,7 @@ CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240=y
 # it cannot be the setup button.
 CONFIG_HOMEHUB_BUTTON_GPIO=41
 
-# Status screen on the 128x128 LCD (backend to be added in main/).
+# Status screen on the 128x128 LCD (backend in main/led_status.c).
 CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R=y
 CONFIG_HOMEHUB_BLE_NAME_SUFFIX="-Disp"
 
