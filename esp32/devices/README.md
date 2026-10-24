@@ -594,6 +594,7 @@ board's overlays, in order:
 | Waveshare C6 LCD 1.47 | `esp32c6` | [`devices/sdkconfig.waveshare-c6-lcd-147`](sdkconfig.waveshare-c6-lcd-147) | `tools/board.sh waveshare-c6-lcd-147 build` |
 | Seeed SenseCAP Indicator | `esp32s3` | [`devices/sdkconfig.sensecap-indicator`](sdkconfig.sensecap-indicator) | `tools/board.sh sensecap-indicator build` |
 | Waveshare S3 ePaper 1.54 | `esp32s3` | [`devices/sdkconfig.waveshare-s3-epaper-154`](sdkconfig.waveshare-s3-epaper-154) | `tools/board.sh waveshare-s3-epaper-154 build` |
+| M5Stack AtomS3R | `esp32s3` | [`devices/sdkconfig.m5stack-atoms3r`](sdkconfig.m5stack-atoms3r) | `tools/board.sh m5stack-atoms3r build` |
 | Seeed reTerminal E1001 | `esp32s3` | [`devices/sdkconfig.reterminal-e1001`](sdkconfig.reterminal-e1001) | `tools/board.sh reterminal-e1001 build` |
 | Seeed reTerminal E1002 | `esp32s3` | [`devices/sdkconfig.reterminal-e1002`](sdkconfig.reterminal-e1002) | `tools/board.sh reterminal-e1002 build` |
 | Seeed reTerminal Sticky (experimental) | `esp32s3` | [`devices/sdkconfig.muse`](sdkconfig.muse), [`devices/sdkconfig.reterminal-sticky`](sdkconfig.reterminal-sticky) | `tools/board.sh reterminal-sticky build` |

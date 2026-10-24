@@ -41,12 +41,14 @@
 #              Waveshare ESP32-C6-LCD-1.47 with a 172x320 status screen
 #   waveshare-s3-epaper-154
 #              Waveshare ESP32-S3-1.54inch-ePaper V2 with a 200x200 e-paper
+#   m5stack-atoms3r
+#              M5Stack AtomS3R (ESP32-S3) with a 0.85 inch status screen
 #
 # The action defaults to build. Without PORT, flash and monitor use the only
 # matching serial port, if there is exactly one.
 set -euo pipefail
 
-usage() { sed -n '16,44p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
+usage() { sed -n '16,46p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit "${1:-0}"; }
 
 [ $# -ge 1 ] || usage 2
 case "$1" in -h|--help) usage ;; esac
@@ -110,6 +112,12 @@ case "$BOARD" in
     PORTS="/dev/cu.usbmodem* /dev/ttyACM*"
     ;;
   waveshare-s3-epaper-154)
+    TARGET=esp32s3
+    DEFAULTS="$DEFAULTS;devices/sdkconfig.$BOARD"
+    # The S3's own USB-Serial-JTAG.
+    PORTS="/dev/cu.usbmodem* /dev/ttyACM*"
+    ;;
+  m5stack-atoms3r)
     TARGET=esp32s3
     DEFAULTS="$DEFAULTS;devices/sdkconfig.$BOARD"
     # The S3's own USB-Serial-JTAG.
