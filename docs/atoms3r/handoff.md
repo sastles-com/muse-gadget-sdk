@@ -34,6 +34,18 @@
   ideaspark / SenseCAP Indicator の回帰ビルドも通過を確認
 - **実機は未経験**。書き込み・ペアリング確認はこれから
 
+## Phase 2 準備メモ（2026-10-24、未着手・範囲確認待ち）
+
+コマンドは `esp32/main/app.c` のディスパッチに追加する形（既存:
+`display.draw_file` / `display.draw_url` / `display.show_animation` /
+`voice.configure`）。追加候補:
+
+1. `display.text` — 文字列を 128x128 画面に描く（チャットからテキストを
+   送って表示する「テキスト応答」の最小形）
+2. `sensor.imu` — AtomS3R 内蔵 IMU (BMI270) の加速度・ジャイロを読む。
+   バックライト制御で既に作っている I2C バス (SDA45/SCL0) を共有できる
+   見込み（IMU も同じバス上）
+
 ## 完了済み
 
 - [x] 上流 SDK の調査：対応ボード、ボード追加レシピ
