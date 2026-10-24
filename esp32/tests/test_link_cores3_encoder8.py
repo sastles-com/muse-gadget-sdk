@@ -54,13 +54,18 @@ class LinkCoreS3Encoder8Test(unittest.TestCase):
     def test_command_is_advertised_and_dispatched_with_the_feature(self):
         noise = (ROOT / "main/noise_control.cpp").read_text()
         start = noise.index("#if CONFIG_HOMEHUB_CORES3_ENCODER8")
-        self.assertIn('add_command(commands, "encoders.read"', noise[start:noise.index("#endif", start)])
+        advertised = noise[start:noise.index("#endif", start)]
+        self.assertIn('add_command(commands, "encoders.read"', advertised)
+        self.assertIn('add_command(commands, "encoders.scan"', advertised)
         app = (ROOT / "main/app.c").read_text()
         start = app.index("static cJSON *on_ws_command(")
         dispatch = app[start:app.index("unsupported command", start)]
         block = dispatch[dispatch.index("#if CONFIG_HOMEHUB_CORES3_ENCODER8"):]
-        self.assertIn('"encoders.read"', block[:block.index("#endif")])
-        self.assertIn("cores3_encoder8_command()", block[:block.index("#endif")])
+        block = block[:block.index("#endif")]
+        self.assertIn('"encoders.read"', block)
+        self.assertIn("cores3_encoder8_command()", block)
+        self.assertIn('"encoders.scan"', block)
+        self.assertIn("cores3_encoder8_scan_command()", block)
 
 
 if __name__ == "__main__":

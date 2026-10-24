@@ -15,7 +15,8 @@
  */
 
 // Host CoreS3 Encoder8 harness: register bytes in, the encoders.read
-// result out. The runner extracts the production protocol code into
+// result out, plus the encoders.scan result for a fake set of probed
+// addresses. The runner extracts the production protocol code into
 // cores3_encoder8_protocol.inc.
 #include <assert.h>
 #include <stdbool.h>
@@ -93,10 +94,56 @@ static void check_result(void) {
     cJSON_Delete(result);
 }
 
+static void check_scan(void) {
+    // Addresses spell as two lowercase hex digits after "0x".
+    char text[5];
+    encoder8_format_addr(0x08, text);
+    assert(!strcmp(text, "0x08"));
+    encoder8_format_addr(0x41, text);
+    assert(!strcmp(text, "0x41"));
+    encoder8_format_addr(0x77, text);
+    assert(!strcmp(text, "0x77"));
+    // The walked range is the standard probe range.
+    assert(ENCODER8_SCAN_FIRST == 0x08 && ENCODER8_SCAN_LAST == 0x77);
+    assert(ENCODER8_SCAN_MAX == 0x77 - 0x08 + 1);
+
+    encoder8_scan_t scan;
+    memset(&scan, 0, sizeof(scan));
+
+    // No bus: an error, not an empty found list.
+    cJSON *result = scan_result(&scan);
+    assert(cJSON_IsFalse(cJSON_GetObjectItem(result, "ok")));
+    cJSON *error = cJSON_GetObjectItem(result, "error");
+    assert(!strcmp(cJSON_GetObjectItem(error, "code")->valuestring, "no_bus"));
+    assert(!cJSON_GetObjectItem(result, "payload"));
+    cJSON_Delete(result);
+
+    // A bus with nothing on it: an empty list, not an error.
+    scan.valid = true;
+    result = scan_result(&scan);
+    assert(cJSON_IsTrue(cJSON_GetObjectItem(result, "ok")));
+    char *json = cJSON_PrintUnformatted(cJSON_GetObjectItem(result, "payload"));
+    assert(!strcmp(json, "{\"found\":[]}"));
+    cJSON_free(json);
+    cJSON_Delete(result);
+
+    // What answered, in probe order.
+    scan.found[0] = 0x41;
+    scan.found[1] = 0x68;
+    scan.found_count = 2;
+    result = scan_result(&scan);
+    assert(cJSON_IsTrue(cJSON_GetObjectItem(result, "ok")));
+    json = cJSON_PrintUnformatted(cJSON_GetObjectItem(result, "payload"));
+    assert(!strcmp(json, "{\"found\":[\"0x41\",\"0x68\"]}"));
+    cJSON_free(json);
+    cJSON_Delete(result);
+}
+
 int main(void) {
     check_registers();
     check_result();
+    check_scan();
     puts("PASS cores3 encoder8: register map, decode, result envelope, "
-         "no-reading error");
+         "no-reading error, scan result");
     return 0;
 }
