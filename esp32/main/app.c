@@ -79,6 +79,9 @@
 #if CONFIG_HOMEHUB_ATOMS3R_IMU
 #include "atoms3r_imu.h"
 #endif
+#if CONFIG_HOMEHUB_ATOMS3R_DISPLAY_TEXT
+#include "display_text.h"
+#endif
 #if CONFIG_MUSE_WATCHER_CAMERA
 #include "boards/watcher_camera.h"
 #endif
@@ -1913,6 +1916,11 @@ static cJSON *on_ws_command(
         cJSON_AddBoolToObject(result, "ok", true);
         return result;
     }
+#if CONFIG_HOMEHUB_ATOMS3R_DISPLAY_TEXT
+    if (strcmp(command, "display.text") == 0) {
+        return display_text_command(params);
+    }
+#endif
 #endif
 #if CONFIG_MUSE_WATCHER_CAMERA
     if (strcmp(command, "camera.capture") == 0) {

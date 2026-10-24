@@ -37,9 +37,11 @@ CONFIG_HOMEHUB_BUTTON_GPIO=41
 CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R=y
 CONFIG_HOMEHUB_BLE_NAME_SUFFIX="-Disp"
 
-# Phase 2: the BMI270 IMU answers sensors.read (defaults on with the
-# backend; set explicitly so the overlay check covers it).
+# Phase 2: the BMI270 IMU answers sensors.read, and display.text draws
+# text on the screen (both default on with the backend; set explicitly
+# so the overlay check covers them).
 CONFIG_HOMEHUB_ATOMS3R_IMU=y
+CONFIG_HOMEHUB_ATOMS3R_DISPLAY_TEXT=y
 
 # 8 MB flash (in-package on the PICO-1). Flash mode left at the default:
 # TODO verify DIO vs QIO against a factory firmware dump before building.

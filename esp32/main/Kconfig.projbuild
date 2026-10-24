@@ -521,6 +521,16 @@ menu "ESP32 Device SDK"
             sensors.read. The IMU is initialised on the first
             sensors.read, so a missing one costs nothing at boot.
 
+    config HOMEHUB_ATOMS3R_DISPLAY_TEXT
+        bool "AtomS3R text display (display.text)"
+        depends on HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R
+        default y
+        help
+            Draw short text on the 128x128 status screen with the
+            built-in pixel font, word-wrapped and centred, and answer
+            display.text. The text replaces the animation until
+            display.show_animation.
+
     config HOMEHUB_DISPLAY_COMMANDS
         bool
         default y if HOMEHUB_DISPLAY

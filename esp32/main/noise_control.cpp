@@ -1494,6 +1494,28 @@ static char *build_register_json(void) {
                          : "Clear the image and bring back the animation and "
                            "the agent's name.",
                     nullptr, nullptr);
+#if CONFIG_HOMEHUB_ATOMS3R_DISPLAY_TEXT
+        cJSON *text_required = cJSON_CreateObject();
+        cJSON_AddItemToObject(text_required, "text",
+                              string_param("The text to show. Short lines work "
+                                           "best; a newline starts a new line "
+                                           "and long lines wrap."));
+        cJSON *text_optional = cJSON_CreateObject();
+        cJSON_AddItemToObject(text_optional, "color",
+                              string_param("Text colour as #rrggbb; default "
+                                           "#ffffff. The background is black."));
+        cJSON *size_param = cJSON_CreateObject();
+        cJSON_AddStringToObject(size_param, "type", "integer");
+        cJSON_AddStringToObject(size_param, "description",
+                                "Font size, 1 to 4. By default the largest "
+                                "size that fits the text is used.");
+        cJSON_AddItemToObject(text_optional, "size", size_param);
+        add_command(commands, "display.text",
+                    "Draw text on the screen in the built-in pixel font, "
+                    "word-wrapped and centred. It hides the animation until "
+                    "display.show_animation. Replies when the text is drawn.",
+                    text_required, text_optional);
+#endif
     }
 #endif
 
