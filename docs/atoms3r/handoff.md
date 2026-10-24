@@ -44,8 +44,9 @@
 
 - 作業リポジトリ（片野）：MacBook Air の `~/work/muse-gadget-sdk`、
   ブランチ `atoms3r`
-- Muse の作業コピー：別途保持。変更はパッチ（git format-patch）で
-  渡すか、Air の clone へファイル直接書き込みで反映する
+- Muse の作業コピー：別途保持。2026-10-24 に Deploy key（muse-vm、
+  Read/write）が登録され、Muse から `atoms3r` ブランチへ直接 push
+  できるようになった（疎通確認済み）。Air の clone は `git pull` で同期する
 - ビルドには SDK トークン（gadgets.muse.ai）が必要。**トークンは
   コミットしない・チャットに貼らない**。ビルドディレクトリの
   sdkconfig にだけ設定する
