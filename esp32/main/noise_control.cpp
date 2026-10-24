@@ -1557,6 +1557,16 @@ static char *build_register_json(void) {
                 nullptr, nullptr);
 #endif
 
+#if CONFIG_HOMEHUB_CORES3_ENCODER8
+    add_command(commands, "encoders.read",
+                "Read the M5Stack Encoder8 unit plugged into Grove "
+                "Port A: each of the eight channels' absolute count "
+                "and the increment since the last read (reading "
+                "clears the increments), plus the eight push buttons "
+                "and the slide switch.",
+                nullptr, nullptr);
+#endif
+
 #if CONFIG_MUSE_WATCHER_CAMERA
     add_command(commands, "camera.capture",
                 "Capture one still JPEG frame from the SenseCAP Watcher camera. "

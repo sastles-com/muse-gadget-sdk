@@ -82,6 +82,9 @@
 #if CONFIG_HOMEHUB_ATOMS3R_DISPLAY_TEXT
 #include "display_text.h"
 #endif
+#if CONFIG_HOMEHUB_CORES3_ENCODER8
+#include "cores3_encoder8.h"
+#endif
 #if CONFIG_MUSE_WATCHER_CAMERA
 #include "boards/watcher_camera.h"
 #endif
@@ -1956,6 +1959,11 @@ static cJSON *on_ws_command(
 #if CONFIG_HOMEHUB_ATOMS3R_IMU
     if (strcmp(command, "sensors.read") == 0) {
         return atoms3r_imu_command();
+    }
+#endif
+#if CONFIG_HOMEHUB_CORES3_ENCODER8
+    if (strcmp(command, "encoders.read") == 0) {
+        return cores3_encoder8_command();
     }
 #endif
     if (strcmp(command, "device.reset_vm") == 0) {
