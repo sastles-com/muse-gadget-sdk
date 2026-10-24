@@ -47,6 +47,7 @@
 #include "esp_lcd_panel_io.h"
 #include "esp_lcd_panel_st7789.h"
 #elif CONFIG_HOMEHUB_LED_BACKEND_M5STACK_ATOMS3R
+#include "atoms3r_i2c.h"
 #include "driver/i2c_master.h"
 #include "driver/spi_master.h"
 #include "esp_lcd_gc9107.h"
@@ -208,8 +209,6 @@ static const char *TAG = "link.led";
 // Draw buffers are sent by SPI DMA.
 #define LCD_BUF_CAPS     MALLOC_CAP_DMA
 #define LCD_BL_I2C_ADDR  0x30
-#define LCD_PIN_I2C_SDA  45
-#define LCD_PIN_I2C_SCL  0
 #endif
 
 #if CONFIG_HOMEHUB_DISPLAY
@@ -749,19 +748,12 @@ static uint32_t atoms3r_probe_panel_id(void) {
 
 // The backlight is not wired to a GPIO: a controller on the internal I2C
 // bus (the IMU's bus) switches it. Init sequence and brightness register
-// from M5GFX's Light_M5StackAtomS3R.
+// from M5GFX's Light_M5StackAtomS3R. The bus is shared with the IMU
+// through atoms3r_i2c_bus().
 static esp_err_t atoms3r_backlight_on(void) {
-    i2c_master_bus_config_t bus_cfg = {
-        .i2c_port = -1,
-        .sda_io_num = LCD_PIN_I2C_SDA,
-        .scl_io_num = LCD_PIN_I2C_SCL,
-        .clk_source = I2C_CLK_SRC_DEFAULT,
-        .glitch_ignore_cnt = 7,
-        .flags.enable_internal_pullup = true,
-    };
-    i2c_master_bus_handle_t bus = NULL;
-    esp_err_t err = i2c_new_master_bus(&bus_cfg, &bus);
-    if (err != ESP_OK) return err;
+    i2c_master_bus_handle_t bus = atoms3r_i2c_bus();
+    if (!bus) return ESP_ERR_INVALID_STATE;
+    esp_err_t err = ESP_OK;
     i2c_device_config_t dev_cfg = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
         .device_address = LCD_BL_I2C_ADDR,
