@@ -1565,6 +1565,14 @@ static char *build_register_json(void) {
                 "clears the increments), plus the eight push buttons "
                 "and the slide switch.",
                 nullptr, nullptr);
+    add_command(commands, "encoders.scan",
+                "Probe every I2C address (0x08 to 0x77) on the "
+                "CoreS3's Grove Port A bus and list which answer, as "
+                "hex strings. Diagnostic for when encoders.read finds "
+                "no Encoder8 at 0x41: an empty list points at wiring, "
+                "power or pins; an answer elsewhere means the unit's "
+                "address differs.",
+                nullptr, nullptr);
 #endif
 
 #if CONFIG_MUSE_WATCHER_CAMERA

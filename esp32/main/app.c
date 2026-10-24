@@ -1965,6 +1965,9 @@ static cJSON *on_ws_command(
     if (strcmp(command, "encoders.read") == 0) {
         return cores3_encoder8_command();
     }
+    if (strcmp(command, "encoders.scan") == 0) {
+        return cores3_encoder8_scan_command();
+    }
 #endif
     if (strcmp(command, "device.reset_vm") == 0) {
         return queue_ws_control(WS_CONTROL_RESET_VM, NULL);

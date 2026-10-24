@@ -541,8 +541,11 @@ menu "ESP32 Device SDK"
             bus of its own; address 0x41) and answer encoders.read
             with all eight channels' absolute counts and increments
             since the last read, the eight button states and the
-            slide switch. The unit is probed on the first
-            encoders.read, so an absent one costs nothing at boot.
+            slide switch. Also answers encoders.scan, which probes
+            every address on the Port A bus and lists those that
+            respond, as a diagnostic when the unit does not answer
+            at 0x41. The unit is probed on the first encoders
+            command, so an absent one costs nothing at boot.
 
     config HOMEHUB_DISPLAY_COMMANDS
         bool

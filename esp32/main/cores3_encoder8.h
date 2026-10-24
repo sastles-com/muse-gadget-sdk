@@ -29,3 +29,8 @@
 // states and the slide switch. An error when the unit does not
 // respond.
 cJSON *cores3_encoder8_command(void);
+
+// encoders.scan: probe every address on the Port A bus and report
+// which ones answer, as a wiring/power/address diagnostic for when
+// encoders.read finds no unit at 0x41.
+cJSON *cores3_encoder8_scan_command(void);

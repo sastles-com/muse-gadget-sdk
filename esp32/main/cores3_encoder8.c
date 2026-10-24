@@ -140,6 +140,68 @@ static cJSON *readings_result(const encoder8_reading_t *r) {
     return result;
 }
 
+// One bus scan for encoders.scan: the 7-bit addresses in the walked
+// range 0x08..0x77 that answered a probe, in ascending order. It
+// distinguishes "nothing on the bus" (wiring, power, pins) from "the
+// unit answers somewhere else" when 0x41 stays silent.
+#define ENCODER8_SCAN_FIRST 0x08
+#define ENCODER8_SCAN_LAST 0x77
+#define ENCODER8_SCAN_MAX (ENCODER8_SCAN_LAST - ENCODER8_SCAN_FIRST + 1)
+
+typedef struct {
+    bool valid;  // false when the bus itself could not be created
+    uint8_t found[ENCODER8_SCAN_MAX];
+    int found_count;
+} encoder8_scan_t;
+
+// Spell one probed address the way the scan result does ("0x41").
+static void encoder8_format_addr(uint8_t addr, char out[5]) {
+    static const char hexdig[] = "0123456789abcdef";
+    out[0] = '0';
+    out[1] = 'x';
+    out[2] = hexdig[(addr >> 4) & 0xF];
+    out[3] = hexdig[addr & 0xF];
+    out[4] = '\0';
+}
+
+// encoders.scan result: the addresses that answered, as hex strings
+// (empty when nothing did); an error when there is no bus to scan.
+static cJSON *scan_result(const encoder8_scan_t *s) {
+    cJSON *result = cJSON_CreateObject();
+    if (!result) return NULL;
+    if (!s->valid) {
+        cJSON_AddBoolToObject(result, "ok", false);
+        cJSON *error = cJSON_AddObjectToObject(result, "error");
+        cJSON_AddStringToObject(error, "code", "no_bus");
+        cJSON_AddStringToObject(error, "message",
+                                "could not create the Grove Port A I2C "
+                                "bus (SDA GPIO2, SCL GPIO1)");
+        return result;
+    }
+    cJSON *payload = cJSON_CreateObject();
+    cJSON *found = cJSON_CreateArray();
+    bool built = payload && found;
+    for (int i = 0; built && i < s->found_count; i++) {
+        char text[5];
+        encoder8_format_addr(s->found[i], text);
+        cJSON *item = cJSON_CreateString(text);
+        if (!item || !cJSON_AddItemToArray(found, item)) {
+            cJSON_Delete(item);
+            built = false;
+        }
+    }
+    if (!built) {
+        cJSON_Delete(result);
+        cJSON_Delete(payload);
+        cJSON_Delete(found);
+        return NULL;
+    }
+    cJSON_AddItemToObject(payload, "found", found);
+    cJSON_AddBoolToObject(result, "ok", true);
+    cJSON_AddItemToObject(result, "payload", payload);
+    return result;
+}
+
 // ---- Encoder8 driver ----------------------------------------------------------
 
 static const char *TAG = "link.encoder8";
@@ -261,4 +323,33 @@ cJSON *cores3_encoder8_command(void) {
     }
     if (lock) xSemaphoreGive(lock);
     return readings_result(&reading);
+}
+
+cJSON *cores3_encoder8_scan_command(void) {
+    encoder8_scan_t scan;
+    memset(&scan, 0, sizeof(scan));
+    SemaphoreHandle_t lock = encoder8_lock();
+    if (lock) xSemaphoreTake(lock, portMAX_DELAY);
+    // The same lazy bus encoders.read uses; a NACK answers at once and
+    // every probe is time-boxed, so the walk is quick and cannot hang.
+    if (encoder8_bus_up() == ESP_OK) {
+        scan.valid = true;
+        for (int addr = ENCODER8_SCAN_FIRST; addr <= ENCODER8_SCAN_LAST;
+             addr++) {
+            if (i2c_master_probe(s_bus, (uint16_t)addr,
+                                 ENCODER8_IO_TIMEOUT_MS) == ESP_OK) {
+                scan.found[scan.found_count++] = (uint8_t)addr;
+            }
+        }
+        if (scan.found_count) {
+            ESP_LOGI(TAG, "Port A scan: %d device(s) answered",
+                     scan.found_count);
+        } else {
+            ESP_LOGW(TAG, "Port A scan: nothing answered "
+                          "(0x%02x..0x%02x)",
+                     ENCODER8_SCAN_FIRST, ENCODER8_SCAN_LAST);
+        }
+    }
+    if (lock) xSemaphoreGive(lock);
+    return scan_result(&scan);
 }
